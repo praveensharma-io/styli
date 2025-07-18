@@ -3,9 +3,6 @@ import { Badge } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 
 const ProductCard = memo(({ product }) => {
-  // Debug: Log when ProductCard re-renders
-  console.log(`ProductCard re-rendered for product: ${product.name}`);
-
   const formatCurrency = (amount) => {
     return `AED ${parseFloat(amount).toFixed(0)}`;
   };
@@ -37,12 +34,10 @@ const ProductCard = memo(({ product }) => {
             style={{ height: '400px', objectFit: 'cover' }}
           />
           
-          {/* "First on Styli" Badge */}
           <div className="position-absolute top-0 end-0 m-2">
             <Badge bg="dark" className="px-2 py-1">First on Styli</Badge>
           </div>
           
-          {/* Wishlist Icon */}
           <div className="position-absolute bottom-0 end-0 m-2">
             <button
               className="btn btn-light rounded-circle"
@@ -50,7 +45,6 @@ const ProductCard = memo(({ product }) => {
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                // Wishlist functionality here
               }}
             >
               <i className="fas fa-heart text-muted"></i>
@@ -69,7 +63,6 @@ const ProductCard = memo(({ product }) => {
             </h6>
           </div>
           
-          {/* Additional Badge for some products */}
           {product.category === 'Summer Holiday Edit' && (
             <div className="mb-2">
               <Badge bg="primary" className="small">Summer Holiday Edit</Badge>

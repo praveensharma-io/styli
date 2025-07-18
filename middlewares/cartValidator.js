@@ -28,10 +28,14 @@ exports.validateUpdateCartItem = [
     .withMessage('Invalid item ID format'),
   
   body('quantity')
-    .notEmpty()
-    .withMessage('Quantity is required')
+    .optional()
     .isInt({ min: 1 })
-    .withMessage('Quantity must be a positive integer')
+    .withMessage('Quantity must be a positive integer'),
+  
+  body('attributes')
+    .optional()
+    .isObject()
+    .withMessage('Attributes must be an object')
 ];
 
 // Validate remove cart item request

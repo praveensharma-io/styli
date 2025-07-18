@@ -1,7 +1,6 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
 import axios from 'axios';
 
-// Separate contexts for different parts of cart state
 const CartDataContext = createContext();
 const CartSummaryContext = createContext();
 const CartActionsContext = createContext();
@@ -30,16 +29,11 @@ export const useCartActions = () => {
   return context;
 };
 
-// Legacy hook for backward compatibility
 export const useCart = () => {
-  const cartData = useCartData();
-  const cartSummary = useCartSummary();
-  const cartActions = useCartActions();
-  
   return {
-    ...cartData,
-    ...cartSummary,
-    ...cartActions
+    ...useCartData(),
+    ...useCartSummary(),
+    ...useCartActions()
   };
 };
 
@@ -52,7 +46,6 @@ export const CartProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Fetch cart data
   const fetchCart = useCallback(async () => {
     setLoading(true);
     try {
@@ -70,7 +63,6 @@ export const CartProvider = ({ children }) => {
     }
   }, []);
 
-  // Fetch cart summary
   const fetchCartSummary = useCallback(async () => {
     try {
       const response = await axios.get('/api/cart/summary');
@@ -82,7 +74,6 @@ export const CartProvider = ({ children }) => {
     }
   }, []);
 
-  // Add item to cart
   const addToCart = useCallback(async (productId, quantity = 1, selectedSize = null) => {
     try {
       const response = await axios.post('/api/cart/items', {
@@ -93,7 +84,6 @@ export const CartProvider = ({ children }) => {
 
       if (response.data && response.data.success) {
         setCart(response.data.cart);
-        // Update cart summary immediately
         await fetchCartSummary();
         return { success: true };
       } else {
@@ -107,7 +97,6 @@ export const CartProvider = ({ children }) => {
     }
   }, [fetchCartSummary]);
 
-  // Update cart item quantity
   const updateCartItem = useCallback(async (itemId, quantity) => {
     try {
       const response = await axios.put(`/api/cart/items/${itemId}`, { quantity });
@@ -126,7 +115,6 @@ export const CartProvider = ({ children }) => {
     }
   }, [fetchCartSummary]);
 
-  // Update cart item attributes (like size)
   const updateCartItemAttributes = useCallback(async (itemId, attributes) => {
     try {
       const response = await axios.put(`/api/cart/items/${itemId}`, { attributes });
@@ -145,7 +133,6 @@ export const CartProvider = ({ children }) => {
     }
   }, [fetchCartSummary]);
 
-  // Remove cart item
   const removeCartItem = useCallback(async (itemId) => {
     try {
       const response = await axios.delete(`/api/cart/items/${itemId}`);
@@ -164,7 +151,6 @@ export const CartProvider = ({ children }) => {
     }
   }, [fetchCartSummary]);
 
-  // Apply coupon
   const applyCoupon = useCallback(async (couponCode) => {
     try {
       const response = await axios.post('/api/cart/coupons', { couponCode });
@@ -181,7 +167,6 @@ export const CartProvider = ({ children }) => {
     }
   }, [fetchCartSummary]);
 
-  // Remove coupon
   const removeCoupon = useCallback(async (code) => {
     try {
       const response = await axios.delete(`/api/cart/coupons/${code}`);
@@ -200,13 +185,11 @@ export const CartProvider = ({ children }) => {
     }
   }, [fetchCartSummary]);
 
-  // Initialize cart data on mount
   useEffect(() => {
     fetchCart();
     fetchCartSummary();
   }, [fetchCart, fetchCartSummary]);
 
-  // Memoize context values to prevent unnecessary re-renders
   const cartDataValue = useMemo(() => ({
     cart,
     loading,

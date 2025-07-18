@@ -5,9 +5,6 @@ import { useCartSummary } from '../context/CartContext';
 const Header = memo(() => {
   const { cartSummary } = useCartSummary();
   
-  // Debug: Log when Header re-renders
-  console.log('Header re-rendered');
-
   return (
     <header className="bg-white border-bottom">
       <div className="container-fluid px-4">

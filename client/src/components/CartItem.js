@@ -1,20 +1,25 @@
-import React, { useState } from 'react';
-import { Button, InputGroup, FormControl, Spinner, Badge, Dropdown } from 'react-bootstrap';
+import React, { useState, useEffect } from 'react';
+import { Button, Spinner, Badge, Dropdown } from 'react-bootstrap';
 import { useCartActions } from '../context/CartContext';
 
 const CartItem = React.memo(({ item, onUpdateQuantity, onRemove, formatCurrency, loading }) => {
   const { updateCartItemAttributes } = useCartActions();
   const price = item.salePrice || item.price;
   const itemTotal = price * item.quantity;
-  const couponDiscount = item.quantity === 2 ? 3.90 : 36.63; // Mock coupon discount based on quantity
+  const couponDiscount = item.quantity === 2 ? 3.90 : 36.63;
   
-  // Get the selected size from item attributes
   const selectedSize = item.attributes?.size || 'L';
   const [currentSize, setCurrentSize] = useState(selectedSize);
   const [sizeLoading, setSizeLoading] = useState(false);
 
-  // Mock stock data for demonstration
-  const stockLevel = item.name.includes('Dress') ? (selectedSize === '24' ? 2 : 1) : 120;
+  useEffect(() => {
+    const newSize = item.attributes?.size || 'L';
+    if (newSize !== currentSize) {
+      setCurrentSize(newSize);
+    }
+  }, [item.attributes?.size, currentSize]);
+
+  const stockLevel = item.name.includes('Dress') ? (currentSize === '24' ? 2 : 1) : 120;
   const isLowStock = stockLevel <= 5;
 
   const handleQuantityChange = (operation) => {
@@ -35,8 +40,6 @@ const CartItem = React.memo(({ item, onUpdateQuantity, onRemove, formatCurrency,
       const result = await updateCartItemAttributes(item._id, { size: newSize });
       if (result.success) {
         setCurrentSize(newSize);
-      } else {
-        console.error('Error updating size:', result.error);
       }
     } catch (error) {
       console.error('Error updating size:', error);
@@ -45,18 +48,11 @@ const CartItem = React.memo(({ item, onUpdateQuantity, onRemove, formatCurrency,
     }
   };
 
-  const handleMoveToWishlist = () => {
-    // Wishlist functionality here
-    console.log('Move to wishlist:', item._id);
-  };
-
-  // Available sizes for the dropdown
   const availableSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
 
   return (
     <div className="cart-item mb-4 p-4">
       <div className="row align-items-start">
-        {/* Product Image */}
         <div className="col-md-3 col-lg-2">
           <div className="position-relative">
             <img
@@ -65,7 +61,6 @@ const CartItem = React.memo(({ item, onUpdateQuantity, onRemove, formatCurrency,
               className="w-100 rounded-3"
               style={{ height: '180px', objectFit: 'cover' }}
             />
-            {/* Stock Badge on Image */}
             {isLowStock && (
               <div className="position-absolute bottom-0 start-0 m-2">
                 <Badge bg="danger" className="px-2 py-1">
@@ -73,27 +68,22 @@ const CartItem = React.memo(({ item, onUpdateQuantity, onRemove, formatCurrency,
                 </Badge>
               </div>
             )}
-            {/* Wishlist Icon */}
             <button
               className="btn btn-light rounded-circle position-absolute top-0 end-0 m-2"
               style={{ width: '32px', height: '32px', fontSize: '0.8rem' }}
-              onClick={handleMoveToWishlist}
             >
               <i className="fas fa-heart text-muted"></i>
             </button>
           </div>
         </div>
         
-        {/* Product Details */}
         <div className="col-md-9 col-lg-10">
           <div className="row">
             <div className="col-lg-8">
-              {/* Product Name */}
               <h6 className="mb-3 fw-bold text-dark" style={{ fontSize: '1rem', lineHeight: '1.4' }}>
                 {item.name}
               </h6>
               
-              {/* Size and Quantity Row */}
               <div className="row align-items-center mb-3">
                 <div className="col-md-6 mb-2 mb-md-0">
                   <Dropdown>
@@ -151,7 +141,6 @@ const CartItem = React.memo(({ item, onUpdateQuantity, onRemove, formatCurrency,
                 </div>
               </div>
               
-              {/* Stock Indicator and Badge */}
               <div className="mb-3">
                 {isLowStock ? (
                   <Badge bg="danger" className="me-3 mb-2 stock-badge">
@@ -167,7 +156,6 @@ const CartItem = React.memo(({ item, onUpdateQuantity, onRemove, formatCurrency,
                 </div>
               </div>
               
-              {/* Action Buttons */}
               <div className="d-flex gap-3">
                 <Button
                   variant="link"
@@ -181,7 +169,6 @@ const CartItem = React.memo(({ item, onUpdateQuantity, onRemove, formatCurrency,
                 <Button
                   variant="link"
                   className="text-muted p-0 text-decoration-none action-btn"
-                  onClick={handleMoveToWishlist}
                 >
                   <i className="fas fa-heart me-1"></i>
                   Move to Wishlist
@@ -189,7 +176,6 @@ const CartItem = React.memo(({ item, onUpdateQuantity, onRemove, formatCurrency,
               </div>
             </div>
             
-            {/* Price */}
             <div className="col-lg-4 text-lg-end mt-3 mt-lg-0">
               <div className="fw-bold fs-4 text-dark mb-1">{formatCurrency(itemTotal)}</div>
               {item.salePrice && item.salePrice < item.price && (

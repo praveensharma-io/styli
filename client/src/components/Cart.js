@@ -18,9 +18,8 @@ const Cart = memo(() => {
   const [couponCode, setCouponCode] = useState('');
   const [couponError, setCouponError] = useState('');
   const [couponSuccess, setCouponSuccess] = useState('');
-  const [itemLoading, setItemLoading] = useState({}); // { [itemId]: true/false }
+  const [itemLoading, setItemLoading] = useState({});
 
-  // Update cart item quantity
   const handleQuantityUpdate = useCallback(async (itemId, quantity) => {
     setItemLoading(prev => ({ ...prev, [itemId]: true }));
     try {
@@ -36,7 +35,6 @@ const Cart = memo(() => {
     }
   }, [updateCartItem, setError]);
 
-  // Remove cart item
   const handleRemoveItem = useCallback(async (itemId) => {
     setItemLoading(prev => ({ ...prev, [itemId]: true }));
     try {
@@ -52,7 +50,6 @@ const Cart = memo(() => {
     }
   }, [removeCartItem, setError]);
 
-  // Handle coupon application
   const handleApplyCoupon = useCallback(async (e) => {
     e.preventDefault();
     if (!couponCode.trim()) {
@@ -75,7 +72,6 @@ const Cart = memo(() => {
     }
   }, [couponCode, applyCoupon]);
 
-  // Handle coupon removal
   const handleRemoveCoupon = useCallback(async (code) => {
     try {
       const result = await removeCoupon(code);
@@ -88,15 +84,12 @@ const Cart = memo(() => {
     }
   }, [removeCoupon, setError]);
 
-  // Format price as currency
   const formatCurrency = useCallback((amount) => {
     return `AED ${parseFloat(amount).toFixed(2)}`;
   }, []);
 
-  // Check if cart is empty
   const isCartEmpty = !cart || !cart.items || cart.items.length === 0;
 
-  // Calculate totals
   const subtotal = cart?.subtotal || 0;
   const shippingFee = 12;
   const couponDiscount = 40.53;
@@ -105,13 +98,11 @@ const Cart = memo(() => {
 
   return (
     <main className="container py-5">
-      {/* Only show global loading overlay for initial load or coupon actions */}
       {loading && (
         <div className="loading-overlay">
           <Spinner animation="border" variant="primary" />
         </div>
       )}
-      {/* Error message */}
       {error && (
         <Alert variant="danger" onClose={() => setError(null)} dismissible>
           {error}
@@ -121,10 +112,8 @@ const Cart = memo(() => {
         <EmptyCart />
       ) : (
         <div className="row g-4">
-          {/* Shopping Bag Section */}
           <div className="col-lg-8">
             <div className="shopping-bag-section">
-              {/* Header */}
               <div className="d-flex align-items-center mb-4">
                 <h2 className="mb-0 fw-bold text-dark">Shopping Bag</h2>
                 <div className="ms-auto">
@@ -134,7 +123,6 @@ const Cart = memo(() => {
                 </div>
               </div>
               
-              {/* Shipping Banner */}
               <div className="shipping-banner mb-4">
                 <div className="d-flex align-items-center justify-content-between">
                   <div className="d-flex align-items-center">
@@ -147,7 +135,6 @@ const Cart = memo(() => {
                 </div>
               </div>
 
-              {/* Cart Items */}
               <div className="cart-items">
                 {cart.items.map(item => (
                   <CartItem
@@ -163,12 +150,10 @@ const Cart = memo(() => {
             </div>
           </div>
 
-          {/* Order Summary Section */}
           <div className="col-lg-4">
             <div className="order-summary-section position-sticky" style={{ top: '2rem' }}>
               <h3 className="mb-4 fw-bold text-dark">Order Summary</h3>
               
-              {/* Shukran Rewards */}
               <div className="shukran-rewards mb-4">
                 <p className="mb-3 text-muted">Your order could earn you 23 Shukrans, Exclusive Offers And More</p>
                 <div className="shukran-banner p-4">
@@ -190,7 +175,6 @@ const Cart = memo(() => {
                 </div>
               </div>
 
-              {/* Coupon Application */}
               <div className="coupon-section mb-4">
                 {couponSuccess && (
                   <div className="coupon-success">
@@ -230,7 +214,6 @@ const Cart = memo(() => {
                 )}
               </div>
 
-              {/* Price Breakdown */}
               <div className="price-breakdown mb-4">
                 <div className="d-flex justify-content-between mb-3">
                   <span className="text-muted">Sub Total</span>
@@ -255,7 +238,6 @@ const Cart = memo(() => {
                   <strong className="fs-5">{formatCurrency(grandTotal)}</strong>
                 </div>
                 
-                {/* Savings Message */}
                 <div className="savings-message p-3">
                   <div className="d-flex align-items-center">
                     <i className="fas fa-shopping-bag me-2"></i>
@@ -266,7 +248,6 @@ const Cart = memo(() => {
                 </div>
               </div>
 
-              {/* Checkout Button */}
               <div className="d-grid">
                 <Button variant="dark" size="lg" className="checkout-btn">
                   <i className="fas fa-lock me-2"></i>
