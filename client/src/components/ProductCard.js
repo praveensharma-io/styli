@@ -37,17 +37,23 @@ const ProductCard = memo(({ product }) => {
           <div className="position-absolute top-0 end-0 m-2">
             <Badge bg="dark" className="px-2 py-1">First on Styli</Badge>
           </div>
-          
-          <div className="position-absolute bottom-0 end-0 m-2">
+          <div className="position-absolute bottom-0 end-0 m-2" style={{ zIndex: 10 }}>
             <button
-              className="btn btn-light rounded-circle"
-              style={{ width: '35px', height: '35px' }}
+              className="d-flex align-items-center justify-content-center rounded-circle border-0 shadow-sm"
+              style={{
+                width: '35px',
+                height: '35px',
+                backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                backdropFilter: 'blur(4px)',
+                WebkitBackdropFilter: 'blur(4px)',
+                transition: 'background-color 0.3s ease'
+              }}
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
               }}
             >
-              <i className="fas fa-heart text-muted"></i>
+              <i className="fas fa-heart text-dark" style={{ fontSize: '1.1rem' }}></i>
             </button>
           </div>
         </div>

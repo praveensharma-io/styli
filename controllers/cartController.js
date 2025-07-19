@@ -1,16 +1,11 @@
-// Exact copy of cartController.js to match the updated import path
 const Cart = require('../models/Cart');
 const Product = require('../models/Product');
 const { validationResult } = require('express-validator');
 
-/**
- * Get user's active cart
- * @route GET /api/cart
- */
 exports.getCart = async (req, res) => {
   try {
-    // In a real app, userId would come from authentication middleware
-    const userId = req.user.id;
+    // Use consistent user ID
+    const userId = req.query.userId || '60d21b4667d0d8992e610c85';
     
     // Get user's active cart
     const cart = await Cart.findOne({ userId, status: 'active' });
@@ -43,10 +38,6 @@ exports.getCart = async (req, res) => {
   }
 };
 
-/**
- * Add item to cart
- * @route POST /api/cart/items
- */
 exports.addToCart = async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -57,12 +48,11 @@ exports.addToCart = async (req, res) => {
       });
     }
     
-    // In a real app, userId would come from authentication middleware
-    const userId = req.user.id;
+    // Use consistent user ID
+    const userId = req.body.userId || '60d21b4667d0d8992e610c85';
     
     const { productId, quantity = 1, attributes = {} } = req.body;
     
-    // Validate product exists and is in stock
     const product = await Product.findById(productId);
     if (!product) {
       return res.status(404).json({
@@ -118,10 +108,6 @@ exports.addToCart = async (req, res) => {
   }
 };
 
-/**
- * Update cart item quantity
- * @route PUT /api/cart/items/:itemId
- */
 exports.updateCartItem = async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -132,8 +118,8 @@ exports.updateCartItem = async (req, res) => {
       });
     }
     
-    // In a real app, userId would come from authentication middleware
-    const userId = req.user.id;
+    // Use consistent user ID
+    const userId = req.body.userId || '60d21b4667d0d8992e610c85';
     
     const { itemId } = req.params;
     const { quantity, attributes } = req.body;
@@ -202,14 +188,10 @@ exports.updateCartItem = async (req, res) => {
   }
 };
 
-/**
- * Remove item from cart
- * @route DELETE /api/cart/items/:itemId
- */
 exports.removeFromCart = async (req, res) => {
   try {
-    // In a real app, userId would come from authentication middleware
-    const userId = req.user.id;
+    // Use consistent user ID
+    const userId = req.query.userId || '60d21b4667d0d8992e610c85';
     
     const { itemId } = req.params;
     
@@ -244,14 +226,10 @@ exports.removeFromCart = async (req, res) => {
   }
 };
 
-/**
- * Clear cart (remove all items)
- * @route DELETE /api/cart
- */
 exports.clearCart = async (req, res) => {
   try {
-    // In a real app, userId would come from authentication middleware
-    const userId = req.user.id;
+    // Use consistent user ID
+    const userId = req.body.userId || '60d21b4667d0d8992e610c85';
     
     // Find user's cart
     const cart = await Cart.findOne({ userId, status: 'active' });
@@ -285,10 +263,6 @@ exports.clearCart = async (req, res) => {
   }
 };
 
-/**
- * Apply coupon to cart
- * @route POST /api/cart/coupons
- */
 exports.applyCoupon = async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -300,7 +274,7 @@ exports.applyCoupon = async (req, res) => {
     }
     
     // In a real app, userId would come from authentication middleware
-    const userId = req.user.id;
+    const userId = req.user?.id || '60d21b4667d0d8992e610c85';
     
     const { couponCode } = req.body;
     
@@ -322,19 +296,105 @@ exports.applyCoupon = async (req, res) => {
       });
     }
     
-    // In a real app, validate coupon from Coupon model
-    // For simplicity, let's assume a fixed 10% discount
-    const discountAmount = cart.subtotal * 0.1;
+    // Import Coupon model
+    const Coupon = require('../models/Coupon');
     
-    // Apply coupon
-    cart.appliedCoupons.push({
-      code: couponCode,
-      discountAmount,
-      type: 'percentage'
+    // Find and validate coupon
+    const coupon = await Coupon.findOne({ 
+      code: couponCode.toUpperCase(),
+      isActive: true
     });
     
-    // Save the cart
-    await cart.save();
+    if (!coupon) {
+      return res.status(404).json({
+        success: false,
+        message: 'Invalid coupon code'
+      });
+    }
+    
+    // Check if coupon is valid
+    const validityCheck = coupon.isValid();
+    if (!validityCheck.valid) {
+      return res.status(400).json({
+        success: false,
+        message: validityCheck.reason
+      });
+    }
+    
+    // Check if user can use coupon
+    const userCheck = coupon.canUserUse(userId);
+    console.log(`User check for coupon ${couponCode}:`, userCheck);
+    console.log(`User ID: ${userId}, User ID type: ${typeof userId}`);
+    console.log(`Coupon usedByUsers:`, coupon.usedByUsers);
+    if (!userCheck.canUse) {
+      return res.status(400).json({
+        success: false,
+        message: userCheck.reason
+      });
+    }
+    
+    // Check if coupon applies to cart
+    const cartItems = cart.items.map(item => ({
+      productId: item.productId,
+      category: item.category || 'General',
+      price: item.salePrice || item.price,
+      quantity: item.quantity
+    }));
+    
+    const cartCheck = coupon.appliesToCart(cartItems, cart.subtotal);
+    if (!cartCheck.applies) {
+      return res.status(400).json({
+        success: false,
+        message: cartCheck.reason
+      });
+    }
+    
+    // Check if coupon can be stacked with existing coupons
+    if (!coupon.stackable && cart.appliedCoupons.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'This coupon cannot be combined with other offers'
+      });
+    }
+    
+    // Calculate discount amount
+    const discountAmount = coupon.calculateDiscount(cart.subtotal, cartItems);
+    
+    // Create the coupon object in the correct format
+    const couponToApply = {
+      code: coupon.code,
+      discountAmount: discountAmount,
+      type: coupon.discountType,
+      couponId: coupon._id
+    };
+    
+    console.log('Applying coupon:', couponToApply);
+    
+    // Use the cart method to apply coupon
+    cart.applyCoupon(couponToApply);
+    
+    console.log('Updated appliedCoupons:', cart.appliedCoupons);
+    
+    // Validate cart before saving
+    const validation = cart.validateCart();
+    if (!validation.isValid) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid cart data',
+        errors: validation.errors
+      });
+    }
+    
+    // Record coupon usage
+    await coupon.recordUsage(userId);
+    
+    // Save the cart with explicit validation
+    try {
+      await cart.save({ validateBeforeSave: true });
+    } catch (saveError) {
+      console.error('Save error:', saveError);
+      throw saveError;
+    }
     
     res.status(200).json({
       success: true,
@@ -351,14 +411,10 @@ exports.applyCoupon = async (req, res) => {
   }
 };
 
-/**
- * Remove coupon from cart
- * @route DELETE /api/cart/coupons/:couponCode
- */
 exports.removeCoupon = async (req, res) => {
   try {
     // In a real app, userId would come from authentication middleware
-    const userId = req.user.id;
+    const userId = req.user?.id || '60d21b4667d0d8992e610c85';
     
     const { couponCode } = req.params;
     
@@ -372,15 +428,26 @@ exports.removeCoupon = async (req, res) => {
       });
     }
     
-    // Remove the coupon
-    cart.appliedCoupons = cart.appliedCoupons.filter(coupon => coupon.code !== couponCode);
+    // Remove the coupon using the cart method and get the removed coupon data
+    const removedCoupon = cart.removeCoupon(couponCode);
+    
+    if (!removedCoupon) {
+      return res.status(404).json({
+        success: false,
+        message: 'Coupon not found in cart'
+      });
+    }
+    
+    // Note: We don't decrease usage when removing from cart
+    // because the user has already "used" the coupon by applying it
+    // Usage should only be decreased when an order is cancelled or refunded
     
     // Save the cart
     await cart.save();
     
     res.status(200).json({
       success: true,
-      message: 'Coupon removed',
+      message: 'Coupon removed successfully',
       cart
     });
   } catch (error) {
@@ -393,10 +460,6 @@ exports.removeCoupon = async (req, res) => {
   }
 };
 
-/**
- * Get cart summary (item count and total)
- * @route GET /api/cart/summary
- */
 exports.getCartSummary = async (req, res) => {
   try {
     // In a real app, userId would come from authentication middleware

@@ -1,9 +1,5 @@
 const Product = require('../models/Product');
 
-/**
- * Get all active products
- * @route GET /api/products
- */
 exports.getAllProducts = async (req, res) => {
   try {
     const { page = 1, limit = 12, category, search } = req.query;
@@ -52,10 +48,67 @@ exports.getAllProducts = async (req, res) => {
   }
 };
 
-/**
- * Get product by ID
- * @route GET /api/products/:id
- */
+exports.searchProducts = async (req, res) => {
+  try {
+    const { q: searchQuery, page = 1, limit = 12, category } = req.query;
+    
+    if (!searchQuery || searchQuery.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        message: 'Search query is required'
+      });
+    }
+    
+    // Build search query
+    const query = { 
+      isActive: true,
+      $or: [
+        { name: { $regex: searchQuery, $options: 'i' } },
+        { description: { $regex: searchQuery, $options: 'i' } },
+        { brand: { $regex: searchQuery, $options: 'i' } },
+        { category: { $regex: searchQuery, $options: 'i' } },
+        { subcategory: { $regex: searchQuery, $options: 'i' } }
+      ]
+    };
+    
+    if (category) {
+      query.category = category;
+    }
+    
+    // Calculate pagination
+    const skip = (page - 1) * limit;
+    
+    // Get products with pagination
+    const products = await Product.find(query)
+      .limit(parseInt(limit))
+      .skip(skip)
+      .sort({ createdAt: -1 });
+    
+    // Get total count for pagination
+    const total = await Product.countDocuments(query);
+    
+    res.status(200).json({
+      success: true,
+      products,
+      searchQuery,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(total / limit),
+        totalProducts: total,
+        hasNext: page * limit < total,
+        hasPrev: page > 1
+      }
+    });
+  } catch (error) {
+    console.error('Error searching products:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to search products',
+      error: error.message
+    });
+  }
+};
+
 exports.getProductById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -82,11 +135,7 @@ exports.getProductById = async (req, res) => {
     });
   }
 };
-
-/**
- * Get product categories
- * @route GET /api/products/categories
- */
+      
 exports.getCategories = async (req, res) => {
   try {
     const categories = await Product.distinct('category');

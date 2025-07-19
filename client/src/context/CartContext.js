@@ -1,224 +1,234 @@
-import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import axios from 'axios';
 
-const CartDataContext = createContext();
-const CartSummaryContext = createContext();
-const CartActionsContext = createContext();
-
-export const useCartData = () => {
-  const context = useContext(CartDataContext);
-  if (!context) {
-    throw new Error('useCartData must be used within a CartProvider');
-  }
-  return context;
-};
-
-export const useCartSummary = () => {
-  const context = useContext(CartSummaryContext);
-  if (!context) {
-    throw new Error('useCartSummary must be used within a CartProvider');
-  }
-  return context;
-};
-
-export const useCartActions = () => {
-  const context = useContext(CartActionsContext);
-  if (!context) {
-    throw new Error('useCartActions must be used within a CartProvider');
-  }
-  return context;
-};
+const CartContext = createContext();
 
 export const useCart = () => {
-  return {
-    ...useCartData(),
-    ...useCartSummary(),
-    ...useCartActions()
-  };
+  const context = useContext(CartContext);
+  if (!context) {
+    throw new Error('useCart must be used within a CartProvider');
+  }
+  return context;
 };
 
 export const CartProvider = ({ children }) => {
-  const [cart, setCart] = useState(null);
-  const [cartSummary, setCartSummary] = useState({
-    itemCount: 0,
-    total: 0
-  });
+  const [cart, setCart] = useState({ items: [], subtotal: 0, total: 0, totalDiscount: 0, appliedCoupons: [] });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const fetchCart = useCallback(async () => {
-    setLoading(true);
+  const loadCart = useCallback(async () => {
     try {
-      const response = await axios.get('/api/cart');
-      if (response.data && response.data.success) {
+      const response = await axios.get('/api/cart', {
+        headers: {
+          'Authorization': 'Bearer test-token'
+        },
+        params: {
+          userId: '60d21b4667d0d8992e610c85'
+        }
+      });
+      if (response.data.success) {
         setCart(response.data.cart);
-      } else {
-        setError('Failed to retrieve cart data');
       }
     } catch (error) {
-      console.error('Error fetching cart:', error);
-      setError('An error occurred while fetching cart data');
+      console.error('Error loading cart:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadCart();
+  }, [loadCart]);
+
+  const addToCart = useCallback(async (productId, quantity = 1, size = null) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await axios.post('/api/cart/items', {
+        userId: '60d21b4667d0d8992e610c85',
+        productId,
+        quantity,
+        attributes: size ? { size } : {}
+      });
+
+      if (response.data.success) {
+        setCart(response.data.cart);
+        return { success: true };
+      } else {
+        setError(response.data.message);
+        return { success: false, error: response.data.message };
+      }
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || 'Failed to add item to cart';
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
     } finally {
       setLoading(false);
     }
   }, []);
 
-  const fetchCartSummary = useCallback(async () => {
+  const updateQuantity = useCallback(async (itemId, quantity) => {
+    setLoading(true);
+    setError(null);
+    
     try {
-      const response = await axios.get('/api/cart/summary');
-      if (response.data && response.data.success) {
-        setCartSummary(response.data.summary);
+      const response = await axios.put(`/api/cart/items/${itemId}`, { 
+        quantity,
+        userId: '60d21b4667d0d8992e610c85'
+      });
+      
+      if (response.data.success) {
+        setCart(response.data.cart);
+        return { success: true };
+      } else {
+        setError(response.data.message);
+        return { success: false, error: response.data.message };
       }
     } catch (error) {
-      console.error('Error fetching cart summary:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to update quantity';
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
+    } finally {
+      setLoading(false);
     }
   }, []);
 
-  const addToCart = useCallback(async (productId, quantity = 1, selectedSize = null) => {
+  const removeItem = useCallback(async (itemId) => {
+    setLoading(true);
+    setError(null);
+    
     try {
-      const response = await axios.post('/api/cart/items', {
-        productId,
-        quantity,
-        attributes: selectedSize ? { size: selectedSize } : {}
+      const response = await axios.delete(`/api/cart/items/${itemId}`, {
+        params: {
+          userId: '60d21b4667d0d8992e610c85'
+        }
       });
-
-      if (response.data && response.data.success) {
+      
+      if (response.data.success) {
         setCart(response.data.cart);
-        await fetchCartSummary();
         return { success: true };
       } else {
-        setError(response.data.message || 'Failed to add item to cart');
+        setError(response.data.message);
         return { success: false, error: response.data.message };
       }
     } catch (error) {
-      console.error('Error adding to cart:', error);
-      setError('An error occurred while adding item to cart');
-      return { success: false, error: 'An error occurred while adding item to cart' };
+      const errorMessage = error.response?.data?.message || 'Failed to remove item';
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
+    } finally {
+      setLoading(false);
     }
-  }, [fetchCartSummary]);
-
-  const updateCartItem = useCallback(async (itemId, quantity) => {
-    try {
-      const response = await axios.put(`/api/cart/items/${itemId}`, { quantity });
-      if (response.data && response.data.success) {
-        setCart(response.data.cart);
-        await fetchCartSummary();
-        return { success: true };
-      } else {
-        setError(response.data.message || 'Failed to update quantity');
-        return { success: false, error: response.data.message };
-      }
-    } catch (error) {
-      console.error('Error updating quantity:', error);
-      setError('An error occurred while updating the quantity');
-      return { success: false, error: 'An error occurred while updating the quantity' };
-    }
-  }, [fetchCartSummary]);
-
-  const updateCartItemAttributes = useCallback(async (itemId, attributes) => {
-    try {
-      const response = await axios.put(`/api/cart/items/${itemId}`, { attributes });
-      if (response.data && response.data.success) {
-        setCart(response.data.cart);
-        await fetchCartSummary();
-        return { success: true };
-      } else {
-        setError(response.data.message || 'Failed to update item attributes');
-        return { success: false, error: response.data.message };
-      }
-    } catch (error) {
-      console.error('Error updating item attributes:', error);
-      setError('An error occurred while updating item attributes');
-      return { success: false, error: 'An error occurred while updating item attributes' };
-    }
-  }, [fetchCartSummary]);
-
-  const removeCartItem = useCallback(async (itemId) => {
-    try {
-      const response = await axios.delete(`/api/cart/items/${itemId}`);
-      if (response.data && response.data.success) {
-        setCart(response.data.cart);
-        await fetchCartSummary();
-        return { success: true };
-      } else {
-        setError(response.data.message || 'Failed to remove item');
-        return { success: false, error: response.data.message };
-      }
-    } catch (error) {
-      console.error('Error removing item:', error);
-      setError('An error occurred while removing the item');
-      return { success: false, error: 'An error occurred while removing the item' };
-    }
-  }, [fetchCartSummary]);
+  }, []);
 
   const applyCoupon = useCallback(async (couponCode) => {
+    setLoading(true);
+    setError(null);
+    
     try {
-      const response = await axios.post('/api/cart/coupons', { couponCode });
-      if (response.data && response.data.success) {
+      const response = await axios.post('/api/cart/coupons', { 
+        couponCode,
+        userId: '60d21b4667d0d8992e610c85'
+      });
+      
+      if (response.data.success) {
         setCart(response.data.cart);
-        await fetchCartSummary();
         return { success: true };
       } else {
-        return { success: false, error: response.data.message || 'Failed to apply coupon' };
-      }
-    } catch (error) {
-      console.error('Error applying coupon:', error);
-      return { success: false, error: 'An error occurred while applying the coupon' };
-    }
-  }, [fetchCartSummary]);
-
-  const removeCoupon = useCallback(async (code) => {
-    try {
-      const response = await axios.delete(`/api/cart/coupons/${code}`);
-      if (response.data && response.data.success) {
-        setCart(response.data.cart);
-        await fetchCartSummary();
-        return { success: true };
-      } else {
-        setError(response.data.message || 'Failed to remove coupon');
+        setError(response.data.message);
         return { success: false, error: response.data.message };
       }
     } catch (error) {
-      console.error('Error removing coupon:', error);
-      setError('An error occurred while removing the coupon');
-      return { success: false, error: 'An error occurred while removing the coupon' };
+      const errorMessage = error.response?.data?.message || 'Failed to apply coupon';
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
+    } finally {
+      setLoading(false);
     }
-  }, [fetchCartSummary]);
+  }, []);
 
-  useEffect(() => {
-    fetchCart();
-    fetchCartSummary();
-  }, [fetchCart, fetchCartSummary]);
+  const removeCoupon = useCallback(async (couponCode) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await axios.delete(`/api/cart/coupons/${couponCode}`, {
+        params: {
+          userId: '60d21b4667d0d8992e610c85'
+        }
+      });
+      
+      if (response.data.success) {
+        setCart(response.data.cart);
+        return { success: true };
+      } else {
+        setError(response.data.message);
+        return { success: false, error: response.data.message };
+      }
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || 'Failed to remove coupon';
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  const cartDataValue = useMemo(() => ({
+  const getAvailableCoupons = useCallback(async () => {
+    try {
+      const cartItems = cart.items.map(item => ({
+        productId: item.productId,
+        category: item.category || 'General',
+        price: item.salePrice || item.price,
+        quantity: item.quantity
+      }));
+      
+      const response = await axios.get('/api/coupons/available', {
+        params: {
+          cartItems: JSON.stringify(cartItems),
+          subtotal: cart.subtotal,
+          userId: '60d21b4667d0d8992e610c85'
+        }
+      });
+
+      if (response.data.success) {
+        return { 
+          success: true, 
+          coupons: response.data.coupons,
+          unavailableCoupons: response.data.unavailableCoupons || []
+        };
+      } else {
+        return { success: false, error: response.data.message };
+      }
+    } catch (error) {
+      return { success: false, error: 'Failed to get available coupons' };
+    }
+  }, [cart]);
+
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
+
+  const clearCart = useCallback(() => {
+    setCart({ items: [], subtotal: 0, total: 0, totalDiscount: 0, appliedCoupons: [] });
+  }, []);
+
+  const value = {
     cart,
     loading,
-    error
-  }), [cart, loading, error]);
-
-  const cartSummaryValue = useMemo(() => ({
-    cartSummary
-  }), [cartSummary]);
-
-  const cartActionsValue = useMemo(() => ({
+    error,
+    loadCart,
     addToCart,
-    updateCartItem,
-    updateCartItemAttributes,
-    removeCartItem,
+    updateQuantity,
+    removeItem,
     applyCoupon,
     removeCoupon,
-    fetchCart,
-    fetchCartSummary,
-    setError
-  }), [addToCart, updateCartItem, updateCartItemAttributes, removeCartItem, applyCoupon, removeCoupon, fetchCart, fetchCartSummary]);
+    getAvailableCoupons,
+    clearError,
+    clearCart
+  };
 
   return (
-    <CartDataContext.Provider value={cartDataValue}>
-      <CartSummaryContext.Provider value={cartSummaryValue}>
-        <CartActionsContext.Provider value={cartActionsValue}>
-          {children}
-        </CartActionsContext.Provider>
-      </CartSummaryContext.Provider>
-    </CartDataContext.Provider>
+    <CartContext.Provider value={value}>
+      {children}
+    </CartContext.Provider>
   );
 }; 
