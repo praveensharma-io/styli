@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const couponController = require('../../controllers/couponController');
+const couponController = require('../controllers/couponController');
 const couponValidator = require('../middlewares/couponValidator');
 
 // Get all coupons

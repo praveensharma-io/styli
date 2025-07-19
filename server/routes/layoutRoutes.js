@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const layoutController = require('../../controllers/layoutController');
+const layoutController = require('../controllers/layoutController');
 
 router.get('/:pageType/:pageId', layoutController.getPageLayout);
 router.post('/', layoutController.createPageLayout);
